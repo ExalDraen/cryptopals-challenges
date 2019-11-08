@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -114,6 +115,26 @@ func Set1() {
 		log.Fatal(err)
 	}
 	fmt.Println(hex.EncodeToString(c5Res))
+
+	// Challenge 6
+	c6()
+}
+
+func c6() {
+	fmt.Println("----------- c6 -------------")
+	origBytes, err := ioutil.ReadFile("set1c6data.txt")
+	if err != nil {
+		log.Fatal("failed to read data file: ")
+	}
+	var decodedBytes = make([]byte, base64.StdEncoding.DecodedLen(len(origBytes)))
+	count, err := base64.StdEncoding.Decode(decodedBytes, origBytes)
+	if err != nil {
+		log.Fatalf("decoding failed after %v bytes: ", count)
+	}
+	fmt.Printf("Decoded bytes: %v\n", decodedBytes)
+
+	// Test hamming distance
+	fmt.Printf("Hamming distance from '%v' to '%v': %v\n", "this is a test", "wokka wokka!!!", hammingDistance("this is a test", "wokka wokka!!!"))
 }
 
 func hexToBase64(hexString string) (string, error) {
@@ -201,4 +222,22 @@ func score(text string) float32 {
 		}
 	}
 	return score
+}
+
+// Return the number of differing bits between two strings
+// adapted from https://en.wikipedia.org/wiki/Hamming_distance#Algorithm_example
+// Assumes len(left) == len(right), results bad or panic otherwise
+func hammingDistance(left string, right string) int {
+	dist := 0
+	leftR := []rune(left)
+	rightR := []rune(right)
+	for idx, l := range leftR {
+		r := rightR[idx]
+		for val := l ^ r; val > 0; val /= 2 {
+			if val&1 == 1 {
+				dist++
+			}
+		}
+	}
+	return dist
 }
