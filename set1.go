@@ -19,6 +19,66 @@ const (
 	space = ' '
 )
 
+var (
+	// Simple letter frequency - only count lowercase characters as upper case characters are
+	// exceedingly rare in English.
+	c3LetterFreq = map[rune]float32{
+		' ': 13.00, // made up: space is slightly more frequent than E/e
+		// 'E': 12.02,
+		// 'T': 9.10,
+		// 'A': 8.12,
+		// 'O': 7.68,
+		// 'I': 7.31,
+		// 'N': 6.95,
+		// 'S': 6.28,
+		// 'R': 6.02,
+		// 'H': 5.92,
+		// 'D': 4.32,
+		// 'L': 3.98,
+		// 'U': 2.88,
+		// 'C': 2.71,
+		// 'M': 2.61,
+		// 'F': 2.30,
+		// 'Y': 2.11,
+		// 'W': 2.09,
+		// 'G': 2.03,
+		// 'P': 1.82,
+		// 'B': 1.49,
+		// 'V': 1.11,
+		// 'K': 0.69,
+		// 'X': 0.17,
+		// 'Q': 0.11,
+		// 'J': 0.10,
+		// 'Z': 0.07,
+		'e': 12.02,
+		't': 9.10,
+		'a': 8.12,
+		'o': 7.68,
+		'i': 7.31,
+		'n': 6.95,
+		's': 6.28,
+		'r': 6.02,
+		'h': 5.92,
+		'd': 4.32,
+		'l': 3.98,
+		'u': 2.88,
+		'c': 2.71,
+		'm': 2.61,
+		'f': 2.30,
+		'y': 2.11,
+		'w': 2.09,
+		'g': 2.03,
+		'p': 1.82,
+		'b': 1.49,
+		'v': 1.11,
+		'k': 0.69,
+		'x': 0.17,
+		'q': 0.11,
+		'j': 0.10,
+		'z': 0.07,
+	}
+)
+
 // Set1 solution
 func Set1() {
 	// Challenge 1
@@ -71,7 +131,7 @@ func xorFixed(left []byte, right []byte) []byte {
 	return out
 }
 
-// decrypt an english plaintext string that has been
+// decrypt an english plaintext string in hex encoding that has been
 //  xor'd against a single by repeatedly guessing the key
 // and giving back the best-looking result
 func decryptSingleXor(cypherText string) (string, int, error) {
@@ -81,17 +141,24 @@ func decryptSingleXor(cypherText string) (string, int, error) {
 	// score string
 	// return highest scoring
 	var res string
-	var max int
+	var maxScore float32
 	var key int
+
+	cypherBytes, err := hex.DecodeString(cypherText)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to convert cyphertext into bytes: ")
+	}
+	fmt.Printf("Cypher bytes are: %v \n", cypherBytes)
 	for i := 41; i < 123; i++ {
 		b := []byte{byte(i)}
-		bytes, err := xor(b, []byte(cypherText))
+		bytes, err := xor(b, cypherBytes)
 		if err != nil {
 			return "", 0, fmt.Errorf("failed to xor cyphertext %v with key %v: ", cypherText, b)
 		}
 		trial := string(bytes)
-		if s := score(trial); s > max {
-			max = s
+		if s := score(trial); s > maxScore {
+			fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
+			maxScore = s
 			res = trial
 			key = i
 		}
@@ -117,32 +184,16 @@ func xor(key []byte, target []byte) ([]byte, error) {
 }
 
 // score a string against the expectation that it's English
-// plaintext.
-func score(text string) int {
-	// Simple metric:
-	// 2 points for lowercase ascii
-	// 1 point for uppercase and digits
-	// 1 point for spaces
-	// 0 for everything else
-	score := 0
+// plaintext, using letter frequency
+func score(text string) float32 {
+	// Simple metric: string score is the sum of
+	// frequencies of a given character.
+
+	var score float32 = 0
 	for _, r := range text {
-		switch {
-		case (r >= 48 && r <= 90): // Uppercase or digit
-			score++
-		case r == space:
-			score++
-		case r >= 97 && r <= 122:
-			score += 2
+		if val, ok := c3LetterFreq[r]; ok == true {
+			score += val
 		}
 	}
 	return score
 }
-
-// The score of a single rune as given by the character
-// frequency in the English language
-// Frequency sequence is etaoinshrdlcumwfgypbvkjxqz as given
-// by wikipedia. Spaces are most common, digits more common than a but
-// less common than t
-// func runeVal(rune r) {
-// 	// dumb metric: value for given character is
-// }
