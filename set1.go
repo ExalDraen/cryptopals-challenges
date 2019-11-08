@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 )
 
 const (
@@ -20,36 +23,8 @@ const (
 )
 
 var (
-	// Simple letter frequency - only count lowercase characters as upper case characters are
-	// exceedingly rare in English.
 	c3LetterFreq = map[rune]float32{
 		' ': 13.00, // made up: space is slightly more frequent than E/e
-		// 'E': 12.02,
-		// 'T': 9.10,
-		// 'A': 8.12,
-		// 'O': 7.68,
-		// 'I': 7.31,
-		// 'N': 6.95,
-		// 'S': 6.28,
-		// 'R': 6.02,
-		// 'H': 5.92,
-		// 'D': 4.32,
-		// 'L': 3.98,
-		// 'U': 2.88,
-		// 'C': 2.71,
-		// 'M': 2.61,
-		// 'F': 2.30,
-		// 'Y': 2.11,
-		// 'W': 2.09,
-		// 'G': 2.03,
-		// 'P': 1.82,
-		// 'B': 1.49,
-		// 'V': 1.11,
-		// 'K': 0.69,
-		// 'X': 0.17,
-		// 'Q': 0.11,
-		// 'J': 0.10,
-		// 'Z': 0.07,
 		'e': 12.02,
 		't': 9.10,
 		'a': 8.12,
@@ -97,10 +72,39 @@ func Set1() {
 
 	// Challenge 3
 	fmt.Println("----------- c3 -------------")
-	fmt.Printf("%v: %v\n", "weehee", score("weehee"))
-	fmt.Printf("%v: %v\n", "I am the law", score("I am the law"))
 	c3Res, c3Key, err := decryptSingleXor(c3CypherText)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Printf("Key: %v, Result: %v\n", c3Key, c3Res)
+
+	// Challenge 4
+	fmt.Println("----------- c4 -------------")
+	file, err := os.Open("set1c4data.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var bestScore float32
+	var bestRes string
+	for scanner.Scan() {
+		txt := scanner.Text()
+		res, key, err := decryptSingleXor(txt)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if s := score(res); s > bestScore {
+			bestScore = s
+			bestRes = res
+			fmt.Printf("New best res: '%v' decrypts to '%q' with key '%v' and score: %v\n", txt, res, key, score(res))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Best result from 60 candidates: %v", bestRes)
 
 	// Challenge 5
 	fmt.Println("----------- c5 -------------")
@@ -148,7 +152,7 @@ func decryptSingleXor(cypherText string) (string, int, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to convert cyphertext into bytes: ")
 	}
-	fmt.Printf("Cypher bytes are: %v \n", cypherBytes)
+	//fmt.Printf("Cypher bytes are: %v \n", cypherBytes)
 	for i := 41; i < 123; i++ {
 		b := []byte{byte(i)}
 		bytes, err := xor(b, cypherBytes)
@@ -157,7 +161,7 @@ func decryptSingleXor(cypherText string) (string, int, error) {
 		}
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
-			fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
+			//fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
 			maxScore = s
 			res = trial
 			key = i
@@ -188,9 +192,10 @@ func xor(key []byte, target []byte) ([]byte, error) {
 func score(text string) float32 {
 	// Simple metric: string score is the sum of
 	// frequencies of a given character.
-
+	// We normalize the string first by turning it to lower case
+	normalized := strings.ToLower(text)
 	var score float32 = 0
-	for _, r := range text {
+	for _, r := range normalized {
 		if val, ok := c3LetterFreq[r]; ok == true {
 			score += val
 		}
