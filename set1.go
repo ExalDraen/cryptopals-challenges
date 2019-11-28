@@ -131,10 +131,60 @@ func c6() {
 	if err != nil {
 		log.Fatalf("decoding failed after %v bytes: ", count)
 	}
-	fmt.Printf("Decoded bytes: %v\n", decodedBytes)
+	//fmt.Printf("Decoded bytes: %xv\n", decodedBytes)
 
 	// Test hamming distance
-	fmt.Printf("Hamming distance from '%v' to '%v': %v\n", "this is a test", "wokka wokka!!!", hammingDistance("this is a test", "wokka wokka!!!"))
+	fmt.Printf("Hamming distance from '%v' to '%v': %v\n", "this is a test", "wokka wokka!!!",
+		hammingDistance([]byte("this is a test"), []byte("wokka wokka!!!")))
+
+	// Guess key size, take first and second i bytes and find
+	// minimal normalized edit distance
+	var nMin float32 = 255.0
+	var keySize int = 0
+	var nD float32 = 0.0
+	for i := 2; i <= 40; i++ {
+		first := decodedBytes[:i]
+		second := decodedBytes[i : 2*i]
+		nD = float32(hammingDistance(first, second) / i)
+		fmt.Printf("Hamming distance %x to %x (keysize %v): %v [normalized from: %v]\n", first, second, i, nD, nD*float32(i))
+		if nD < nMin {
+			fmt.Printf("Found new minimal keysize %v: distance %v\n", i, nD)
+			nMin = nD
+			keySize = i
+		}
+	}
+
+	// Break bytes into keysize blocks
+	var blocks [][]byte
+	for keySize < len(origBytes) {
+		origBytes, blocks = origBytes[keySize:], append(blocks, origBytes[0:keySize:keySize])
+	}
+	fmt.Printf("Blocks are: %v\n", blocks)
+
+	// transpose them
+	tBlocks := make([][]byte, keySize)
+	for i := 0; i < keySize; i++ {
+		tBlocks[i] = make([]byte, len(blocks))
+	}
+	for i := 0; i < keySize; i++ {
+		for j := range blocks {
+			tBlocks[i][j] = blocks[j][i]
+		}
+	}
+	fmt.Printf("Transposed blocks are: %v\n", tBlocks)
+
+	// solve each block
+	blockKeys := make([]int, keySize)
+	blockRes := make([]string, keySize)
+	var blockErr error
+	for i, bl := range tBlocks {
+		blockRes[i], blockKeys[i], blockErr = decryptSingleXorB(bl)
+		if blockErr != nil {
+			log.Fatalf("failed to decode block: %s", blockErr)
+		}
+		fmt.Printf("Solved block %v: %v\n", i, blockRes[i])
+	}
+
 }
 
 func hexToBase64(hexString string) (string, error) {
@@ -160,25 +210,33 @@ func xorFixed(left []byte, right []byte) []byte {
 //  xor'd against a single by repeatedly guessing the key
 // and giving back the best-looking result
 func decryptSingleXor(cypherText string) (string, int, error) {
+	cypherBytes, err := hex.DecodeString(cypherText)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to convert cyphertext into bytes: ")
+	}
+
+	return decryptSingleXorB(cypherBytes)
+}
+
+// Decrypt a slice of bytes that has been encrypted by
+// xoring against a single byte repeatedly. This is done by
+// guessing the key and giving back the result that is most
+// likely to correspond to English plain text.
+func decryptSingleXorB(cypherBytes []byte) (string, int, error) {
+	var res string
+	var maxScore float32
+	var key int
+
 	// guess from A->z ascii code points
 	// xor string with trial byte
 	// encode bytes into string
 	// score string
 	// return highest scoring
-	var res string
-	var maxScore float32
-	var key int
-
-	cypherBytes, err := hex.DecodeString(cypherText)
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to convert cyphertext into bytes: ")
-	}
-	//fmt.Printf("Cypher bytes are: %v \n", cypherBytes)
 	for i := 41; i < 123; i++ {
 		b := []byte{byte(i)}
 		bytes, err := xor(b, cypherBytes)
 		if err != nil {
-			return "", 0, fmt.Errorf("failed to xor cyphertext %v with key %v: ", cypherText, b)
+			return "", 0, fmt.Errorf("failed to xor cypher bytes %v with key %v: ", cypherBytes, b)
 		}
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
@@ -224,15 +282,13 @@ func score(text string) float32 {
 	return score
 }
 
-// Return the number of differing bits between two strings
+// Return the number of differing bits between two byte slices
 // adapted from https://en.wikipedia.org/wiki/Hamming_distance#Algorithm_example
 // Assumes len(left) == len(right), results bad or panic otherwise
-func hammingDistance(left string, right string) int {
+func hammingDistance(left []byte, right []byte) int {
 	dist := 0
-	leftR := []rune(left)
-	rightR := []rune(right)
-	for idx, l := range leftR {
-		r := rightR[idx]
+	for idx, l := range left {
+		r := right[idx]
 		for val := l ^ r; val > 0; val /= 2 {
 			if val&1 == 1 {
 				dist++

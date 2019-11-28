@@ -44,3 +44,6 @@ override.tf.json
 *_override.tf.json
 
 # End of https://www.gitignore.io/api/go
+
+# Built binary
+cryptopals-challenges
