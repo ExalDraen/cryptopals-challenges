@@ -182,9 +182,22 @@ func c6() {
 		if blockErr != nil {
 			log.Fatalf("failed to decode block: %s", blockErr)
 		}
-		fmt.Printf("Solved block %v: %v\n", i, blockRes[i])
+		fmt.Printf("Solved block %v with key %v: %v\n", i, blockKeys[i], blockRes[i])
 	}
 
+	// Put together the key
+	fullKey := make([]byte, len(blockKeys))
+	for i := range blockKeys {
+		fullKey[i] = byte(blockKeys[i])
+	}
+	fmt.Printf("Full key is: %v\n", fullKey)
+
+	// Finally, decrypt
+	result, err := xor([]byte(fullKey), decodedBytes)
+	if err != nil {
+		fmt.Printf("failed to decrypt message: %v", err)
+	}
+	fmt.Printf("Result is: %v", string(result))
 }
 
 func hexToBase64(hexString string) (string, error) {
@@ -196,6 +209,8 @@ func hexToBase64(hexString string) (string, error) {
 	return b64, nil
 }
 
+// xorFixed takes two byte slices and produces the byte-by-byte
+// result slice
 func xorFixed(left []byte, right []byte) []byte {
 	out := make([]byte, len(left))
 
@@ -240,7 +255,7 @@ func decryptSingleXorB(cypherBytes []byte) (string, int, error) {
 		}
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
-			//fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
+			fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
 			maxScore = s
 			res = trial
 			key = i
@@ -296,4 +311,29 @@ func hammingDistance(left []byte, right []byte) int {
 		}
 	}
 	return dist
+}
+
+// guessKeySize will guess the size (length) of the 
+// Given a byte slice, key size, take first and second i bytes and find
+// minimal normalized edit distance
+func guessKeySize(data []byte) {
+	// Guess key size, take first and second i bytes and find
+	// minimal normalized edit distance
+
+	// TODO: FIXME
+	
+	// var nMin float32 = 255.0
+	// var keySize int = 0
+	// var nD float32 = 0.0
+	// for i := 2; i <= 40; i++ {
+	// 	first := decodedBytes[:i]
+	// 	second := decodedBytes[i : 2*i]
+	// 	nD = float32(hammingDistance(first, second) / i)
+	// 	fmt.Printf("Hamming distance %x to %x (keysize %v): %v [normalized from: %v]\n", first, second, i, nD, nD*float32(i))
+	// 	if nD < nMin {
+	// 		fmt.Printf("Found new minimal keysize %v: distance %v\n", i, nD)
+	// 		nMin = nD
+	// 		keySize = i
+	// 	}
+	}
 }
