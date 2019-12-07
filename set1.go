@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"strings"
 )
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	c3LetterFreq = map[rune]float32{
+	c3LetterFreq = map[rune]float64{
 		' ': 13.00, // made up: space is slightly more frequent than E/e
 		'e': 12.02,
 		't': 9.10,
@@ -88,7 +88,7 @@ func Set1() {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var bestScore float32
+	var bestScore float64
 	var bestRes string
 	for scanner.Scan() {
 		txt := scanner.Text()
@@ -117,87 +117,7 @@ func Set1() {
 	fmt.Println(hex.EncodeToString(c5Res))
 
 	// Challenge 6
-	c6()
-}
-
-func c6() {
-	fmt.Println("----------- c6 -------------")
-	origBytes, err := ioutil.ReadFile("set1c6data.txt")
-	if err != nil {
-		log.Fatal("failed to read data file: ")
-	}
-	var decodedBytes = make([]byte, base64.StdEncoding.DecodedLen(len(origBytes)))
-	count, err := base64.StdEncoding.Decode(decodedBytes, origBytes)
-	if err != nil {
-		log.Fatalf("decoding failed after %v bytes: ", count)
-	}
-	//fmt.Printf("Decoded bytes: %xv\n", decodedBytes)
-
-	// Test hamming distance
-	fmt.Printf("Hamming distance from '%v' to '%v': %v\n", "this is a test", "wokka wokka!!!",
-		hammingDistance([]byte("this is a test"), []byte("wokka wokka!!!")))
-
-	// Guess key size, take first and second i bytes and find
-	// minimal normalized edit distance
-	var nMin float32 = 255.0
-	var keySize int = 0
-	var nD float32 = 0.0
-	for i := 2; i <= 40; i++ {
-		first := decodedBytes[:i]
-		second := decodedBytes[i : 2*i]
-		nD = float32(hammingDistance(first, second) / i)
-		fmt.Printf("Hamming distance %x to %x (keysize %v): %v [normalized from: %v]\n", first, second, i, nD, nD*float32(i))
-		if nD < nMin {
-			fmt.Printf("Found new minimal keysize %v: distance %v\n", i, nD)
-			nMin = nD
-			keySize = i
-		}
-	}
-
-	// Break bytes into keysize blocks
-	var blocks [][]byte
-	for keySize < len(origBytes) {
-		origBytes, blocks = origBytes[keySize:], append(blocks, origBytes[0:keySize:keySize])
-	}
-	fmt.Printf("Blocks are: %v\n", blocks)
-
-	// transpose them
-	tBlocks := make([][]byte, keySize)
-	for i := 0; i < keySize; i++ {
-		tBlocks[i] = make([]byte, len(blocks))
-	}
-	for i := 0; i < keySize; i++ {
-		for j := range blocks {
-			tBlocks[i][j] = blocks[j][i]
-		}
-	}
-	fmt.Printf("Transposed blocks are: %v\n", tBlocks)
-
-	// solve each block
-	blockKeys := make([]int, keySize)
-	blockRes := make([]string, keySize)
-	var blockErr error
-	for i, bl := range tBlocks {
-		blockRes[i], blockKeys[i], blockErr = decryptSingleXorB(bl)
-		if blockErr != nil {
-			log.Fatalf("failed to decode block: %s", blockErr)
-		}
-		fmt.Printf("Solved block %v with key %v: %v\n", i, blockKeys[i], blockRes[i])
-	}
-
-	// Put together the key
-	fullKey := make([]byte, len(blockKeys))
-	for i := range blockKeys {
-		fullKey[i] = byte(blockKeys[i])
-	}
-	fmt.Printf("Full key is: %v\n", fullKey)
-
-	// Finally, decrypt
-	result, err := xor([]byte(fullKey), decodedBytes)
-	if err != nil {
-		fmt.Printf("failed to decrypt message: %v", err)
-	}
-	fmt.Printf("Result is: %v", string(result))
+	C6()
 }
 
 func hexToBase64(hexString string) (string, error) {
@@ -230,16 +150,16 @@ func decryptSingleXor(cypherText string) (string, int, error) {
 		return "", 0, fmt.Errorf("failed to convert cyphertext into bytes: ")
 	}
 
-	return decryptSingleXorB(cypherBytes)
+	return DecryptSingleXorB(cypherBytes)
 }
 
-// Decrypt a slice of bytes that has been encrypted by
+// DecryptSingleXorB decrypts a slice of bytes that has been encrypted by
 // xoring against a single byte repeatedly. This is done by
 // guessing the key and giving back the result that is most
 // likely to correspond to English plain text.
-func decryptSingleXorB(cypherBytes []byte) (string, int, error) {
+func DecryptSingleXorB(cypherBytes []byte) (string, int, error) {
 	var res string
-	var maxScore float32
+	var maxScore = -math.MaxFloat64
 	var key int
 
 	// guess from A->z ascii code points
@@ -255,7 +175,7 @@ func decryptSingleXorB(cypherBytes []byte) (string, int, error) {
 		}
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
-			fmt.Printf("Found new high score %v with key %v, giving result '%v'\n", s, i, trial)
+			//fmt.Printf("Found new high score %v with key %v, giving result '%q'\n", s, i, trial)
 			maxScore = s
 			res = trial
 			key = i
@@ -283,24 +203,28 @@ func xor(key []byte, target []byte) ([]byte, error) {
 
 // score a string against the expectation that it's English
 // plaintext, using letter frequency
-func score(text string) float32 {
+func score(text string) float64 {
 	// Simple metric: string score is the sum of
 	// frequencies of a given character.
 	// We normalize the string first by turning it to lower case
 	normalized := strings.ToLower(text)
-	var score float32 = 0
+	const penalty = 10
+	var score float64
 	for _, r := range normalized {
 		if val, ok := c3LetterFreq[r]; ok == true {
 			score += val
+		} else {
+			// characters outside the printable range are very unlikely - thus a negative score adjustment
+			score -= penalty
 		}
 	}
 	return score
 }
 
-// Return the number of differing bits between two byte slices
+// HammingDistance returns the number of differing bits between two byte slices
 // adapted from https://en.wikipedia.org/wiki/Hamming_distance#Algorithm_example
 // Assumes len(left) == len(right), results bad or panic otherwise
-func hammingDistance(left []byte, right []byte) int {
+func HammingDistance(left []byte, right []byte) int {
 	dist := 0
 	for idx, l := range left {
 		r := right[idx]
@@ -311,29 +235,4 @@ func hammingDistance(left []byte, right []byte) int {
 		}
 	}
 	return dist
-}
-
-// guessKeySize will guess the size (length) of the 
-// Given a byte slice, key size, take first and second i bytes and find
-// minimal normalized edit distance
-func guessKeySize(data []byte) {
-	// Guess key size, take first and second i bytes and find
-	// minimal normalized edit distance
-
-	// TODO: FIXME
-	
-	// var nMin float32 = 255.0
-	// var keySize int = 0
-	// var nD float32 = 0.0
-	// for i := 2; i <= 40; i++ {
-	// 	first := decodedBytes[:i]
-	// 	second := decodedBytes[i : 2*i]
-	// 	nD = float32(hammingDistance(first, second) / i)
-	// 	fmt.Printf("Hamming distance %x to %x (keysize %v): %v [normalized from: %v]\n", first, second, i, nD, nD*float32(i))
-	// 	if nD < nMin {
-	// 		fmt.Printf("Found new minimal keysize %v: distance %v\n", i, nD)
-	// 		nMin = nD
-	// 		keySize = i
-	// 	}
-	}
 }
