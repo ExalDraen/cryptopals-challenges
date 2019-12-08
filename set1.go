@@ -116,6 +116,9 @@ func Set1() {
 
 	// Challenge 6
 	C6()
+
+	// Challenge 7
+	C7()
 }
 
 func hexToBase64(hexString string) (string, error) {
