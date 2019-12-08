@@ -1,5 +1,11 @@
 package main
 
+import (
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
+)
+
 // Transpose transpose a slice of slices of bytes,
 // e.g. turning a 5x10 slice into a 10x5 slice,
 func Transpose(data [][]byte) (tBlocks [][]byte) {
@@ -42,4 +48,19 @@ func ChunkBytes(data []byte, size int) (blocks [][]byte) {
 		data, blocks = data[size:], append(blocks, data[0:size:size])
 	}
 	return
+}
+
+// ReadAllBase64 reads bas64 encoded test from the given file
+// and returns the decoded output as a byte slice
+func ReadAllBase64(path string) ([]byte, error) {
+	// Read and base64 decode data
+	enc, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read data file: %v", err)
+	}
+	out, err := base64.StdEncoding.DecodeString(string(enc))
+	if err != nil {
+		return nil, fmt.Errorf("decoding failed: %v", err)
+	}
+	return out, nil
 }

@@ -186,4 +186,3 @@ func score(text string) float64 {
 	}
 	return score
 }
-

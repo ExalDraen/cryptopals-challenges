@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"sort"
 )
@@ -110,15 +108,9 @@ func C6() {
 	// Verify hamming distance implementation is correct
 	fmt.Printf("Hamming distance of '%v' to '%v': %v\n", hTest1, hTest2, HammingDistance([]byte(hTest1), []byte(hTest2)))
 
-	// Read and base64 decode data
-	enc, err := ioutil.ReadFile(dataPath)
+	original, err := ReadAllBase64(dataPath)
 	if err != nil {
-		log.Fatal("failed to read data file: ")
-	}
-	fmt.Printf("Read %v bytes of base64 data\n", len(enc))
-	original, err := base64.StdEncoding.DecodeString(string(enc))
-	if err != nil {
-		log.Fatalf("decoding failed: %v", err)
+		log.Fatalf("Failed to read C6 input %v", err)
 	}
 	fmt.Printf("Decoded encoded data into %v bytes of data\n", len(original))
 
