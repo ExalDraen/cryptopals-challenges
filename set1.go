@@ -68,7 +68,7 @@ func Set1() {
 	fmt.Println("----------- c2 -------------")
 	c2Left, err := hex.DecodeString(c2LeftStr)
 	c2Right, err := hex.DecodeString(c2RightStr)
-	c2Res := xorFixed(c2Left, c2Right)
+	c2Res := XorFixed(c2Left, c2Right)
 	fmt.Println(hex.EncodeToString(c2Res))
 
 	// Challenge 3
@@ -110,10 +110,8 @@ func Set1() {
 	// Challenge 5
 	fmt.Println("----------- c5 -------------")
 	c5bytes := []byte(c5Str)
-	c5Res, err := xor([]byte(c5Key), c5bytes)
-	if err != nil {
-		log.Fatal(err)
-	}
+	c5Res := RepeatingKeyXOR(c5bytes, []byte(c5Key))
+
 	fmt.Println(hex.EncodeToString(c5Res))
 
 	// Challenge 6
@@ -127,18 +125,6 @@ func hexToBase64(hexString string) (string, error) {
 	}
 	b64 := base64.StdEncoding.EncodeToString(bytes)
 	return b64, nil
-}
-
-// xorFixed takes two byte slices and produces the byte-by-byte
-// result slice
-func xorFixed(left []byte, right []byte) []byte {
-	out := make([]byte, len(left))
-
-	// Could reuse an input buffer here
-	for i := range left {
-		out[i] = left[i] ^ right[i]
-	}
-	return out
 }
 
 // decrypt an english plaintext string in hex encoding that has been
@@ -169,10 +155,7 @@ func DecryptSingleXorB(cypherBytes []byte) (string, int, error) {
 	// return highest scoring
 	for i := 0; i < 256; i++ {
 		b := []byte{byte(i)}
-		bytes, err := xor(b, cypherBytes)
-		if err != nil {
-			return "", 0, fmt.Errorf("failed to xor cypher bytes %v with key %v: ", cypherBytes, b)
-		}
+		bytes := RepeatingKeyXOR(cypherBytes, b)
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
 			//fmt.Printf("Found new high score %v with key %v, giving result '%q'\n", s, i, trial)
@@ -182,23 +165,6 @@ func DecryptSingleXorB(cypherBytes []byte) (string, int, error) {
 		}
 	}
 	return res, key, nil
-}
-
-// repeatedly xor the bytes in target one by one with those
-// in key. Assumes target perfectly divides into key.
-func xor(key []byte, target []byte) ([]byte, error) {
-	if len(target)%len(key) != 0 {
-		return nil, fmt.Errorf("the buffer to encode (len %v) does not perfectly divide by the key length (%v)",
-			len(target), len(key))
-	}
-
-	out := make([]byte, len(target))
-	for i := 0; i < len(target); i += len(key) {
-		for j := range key {
-			out[i+j] = target[i+j] ^ key[j]
-		}
-	}
-	return out, nil
 }
 
 // score a string against the expectation that it's English

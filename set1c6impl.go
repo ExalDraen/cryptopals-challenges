@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -109,12 +108,12 @@ func solveWithSize(size int, data []byte) []byte {
 		if blockErr != nil {
 			log.Fatalf("failed to decode transposed block: %s", blockErr)
 		}
-		fmt.Printf("The %v character in each key block is [key byte: %v]: %v\n", i, blockKeys[i], blockRes[i])
+		//fmt.Printf("The %v character in each key block is [key byte: %v]: %v\n", i, blockKeys[i], blockRes[i])
 	}
 
-	// transpose the solved blocks back
-	solvedBytes := bytes.Join(Transpose(blockResBytes), []byte{})
-	fmt.Printf("*** Solution ***:\n%s\n", solvedBytes)
+	// Could simply output the transposed solved blocks here, but
+	// for sake of following the instructions, reconstruct the key
+	// instead
 
 	// Put together the key
 	fullKey := make([]byte, len(blockKeys))
@@ -124,10 +123,7 @@ func solveWithSize(size int, data []byte) []byte {
 	fmt.Printf("Full key is: %v\n", fullKey)
 
 	// Finally, decrypt
-	result, err := xor([]byte(fullKey), data)
-	if err != nil {
-		log.Fatalf("failed to decrypt message: %v", err)
-	}
+	result := RepeatingKeyXOR(data, []byte(fullKey))
 	return result
 }
 
@@ -160,7 +156,7 @@ func C6() {
 	// Decrypt with a few key sizes from the most likely to the least likely
 	for i := 0; i < sizesToTry && i < len(candidates); i++ {
 		plaintext := solveWithSize(candidates[i].length, original)
-		fmt.Printf("Plain text solution at size %v: %v\n", candidates[i].length, string(plaintext))
+		fmt.Printf("Plain text solution at size %v:\n\n %v\n", candidates[i].length, string(plaintext))
 	}
 
 }
