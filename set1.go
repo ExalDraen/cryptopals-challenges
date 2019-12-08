@@ -162,12 +162,12 @@ func DecryptSingleXorB(cypherBytes []byte) (string, int, error) {
 	var maxScore = -math.MaxFloat64
 	var key int
 
-	// guess from A->z ascii code points
+	// guess from ascii code points
 	// xor string with trial byte
 	// encode bytes into string
 	// score string
 	// return highest scoring
-	for i := 41; i < 123; i++ {
+	for i := 0; i < 256; i++ {
 		b := []byte{byte(i)}
 		bytes, err := xor(b, cypherBytes)
 		if err != nil {
@@ -208,7 +208,7 @@ func score(text string) float64 {
 	// frequencies of a given character.
 	// We normalize the string first by turning it to lower case
 	normalized := strings.ToLower(text)
-	const penalty = 10
+	const penalty = 50
 	var score float64
 	for _, r := range normalized {
 		if val, ok := c3LetterFreq[r]; ok == true {

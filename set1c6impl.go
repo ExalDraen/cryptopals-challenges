@@ -153,7 +153,6 @@ func C6() {
 		log.Fatalf("decoding failed: %v", err)
 	}
 	fmt.Printf("Decoded encoded data into %v bytes of data\n", len(original))
-	//fmt.Printf("Decoded bytes (hex): %x\n", original)
 
 	// Get possible key sizes
 	candidates := KeysFromB(original, 2, 50)
