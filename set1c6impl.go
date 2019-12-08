@@ -55,34 +55,6 @@ func KeysFromB(data []byte, from int, to int) []Candidate {
 	return candidates
 }
 
-// Transpose transpose a slice of slices of bytes,
-// e.g. turning a 5x10 slice into a 10x5 slice,
-func Transpose(data [][]byte) (tBlocks [][]byte) {
-	size := len(data[0]) // length of slices within slices
-	tBlocks = make([][]byte, size)
-	for i := 0; i < size; i++ {
-		tBlocks[i] = make([]byte, len(data))
-	}
-	for i := 0; i < size; i++ {
-		for j := range data {
-			tBlocks[i][j] = data[j][i]
-		}
-	}
-	return
-}
-
-// ChunkBytes split a slice of bytes into a slice containing
-// slices of `size` bytes
-func ChunkBytes(data []byte, size int) (blocks [][]byte) {
-	//var blocks [][]byte
-	// dataClone := make([]byte, len(data))
-	// copy(dataClone, data)
-	for size < len(data) {
-		data, blocks = data[size:], append(blocks, data[0:size:size])
-	}
-	return
-}
-
 // solveWithSize attempts to decrypt a byte slice
 // encoded with repeating key xor of a given size
 // assuming the plain text is English ASCII.

@@ -187,18 +187,3 @@ func score(text string) float64 {
 	return score
 }
 
-// HammingDistance returns the number of differing bits between two byte slices
-// adapted from https://en.wikipedia.org/wiki/Hamming_distance#Algorithm_example
-// Assumes len(left) == len(right), results bad or panic otherwise
-func HammingDistance(left []byte, right []byte) int {
-	dist := 0
-	for idx, l := range left {
-		r := right[idx]
-		for val := l ^ r; val > 0; val /= 2 {
-			if val&1 == 1 {
-				dist++
-			}
-		}
-	}
-	return dist
-}
