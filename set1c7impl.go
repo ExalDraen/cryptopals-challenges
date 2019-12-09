@@ -7,6 +7,7 @@ import (
 
 // C7 solves set1, challenge 7
 func C7() {
+	fmt.Println("---------------------- c7 ------------------------")
 	const key = "YELLOW SUBMARINE"
 	const dataPath = "set1c7data.txt"
 
