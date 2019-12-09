@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
 	"fmt"
 	"log"
 )
@@ -15,11 +14,10 @@ func C7() {
 	if err != nil {
 		log.Fatalf("Failed to read data: %v", data)
 	}
-	cypher, err := aes.NewCipher([]byte(key))
+
+	plain, err := AesDecrypt(data, []byte(key))
 	if err != nil {
-		log.Fatalf("Failed to instantiate cypher with key %v: %v", key, data)
+		log.Fatalf("Couldn't decrypt: %v", data)
 	}
-	plain := make([]byte, len(data))
-	cypher.Decrypt(plain, data)
-	fmt.Printf("The plain text is:\n\n %v", plain)
+	fmt.Printf("The plain text is:\n\n %v", string(plain))
 }
