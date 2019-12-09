@@ -16,7 +16,7 @@ func C7() {
 		log.Fatalf("Failed to read data: %v", data)
 	}
 
-	plain, err := AesDecrypt(data, []byte(key))
+	plain, err := AesDecryptECB(data, []byte(key))
 	if err != nil {
 		log.Fatalf("Couldn't decrypt: %v", data)
 	}
