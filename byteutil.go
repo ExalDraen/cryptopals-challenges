@@ -39,13 +39,20 @@ func HammingDistance(left []byte, right []byte) int {
 }
 
 // ChunkBytes split a slice of bytes into a slice containing
-// slices of `size` bytes
+// slices of `size` bytes. If the original slice does not evenly
+// divide into `size` any remainder bytes are dropped.
 func ChunkBytes(data []byte, size int) (blocks [][]byte) {
-	//var blocks [][]byte
-	// dataClone := make([]byte, len(data))
-	// copy(dataClone, data)
-	for size < len(data) {
+	for size <= len(data) {
 		data, blocks = data[size:], append(blocks, data[0:size:size])
+	}
+	return
+}
+
+// UnchunkBytes concatnates a slice of byte slices into a single
+// slice of bytes
+func UnchunkBytes(blocks [][]byte) (data []byte) {
+	for i := range blocks {
+		data = append(data, blocks[i]...)
 	}
 	return
 }
