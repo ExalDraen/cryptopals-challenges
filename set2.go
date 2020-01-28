@@ -15,7 +15,7 @@ func C9() {
 	fmt.Printf("Trial %v padded to 20: %q\n", trial, string(PadPKCS7([]byte(trial), 20)))
 }
 
-// 10 solution
+// C10 solution
 func C10() {
 	fmt.Println("---------------------- c10 ------------------------")
 	const key = "YELLOW SUBMARINE"
