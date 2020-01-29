@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -70,4 +71,15 @@ func ReadAllBase64(path string) ([]byte, error) {
 		return nil, fmt.Errorf("decoding failed: %v", err)
 	}
 	return out, nil
+}
+
+// GenerateRandomBytes generates Generates `n` random bytes
+// Not cryptographically secure.
+func GenerateRandomBytes(n int) ([]byte, error) {
+	result := make([]byte, n)
+	_, err := rand.Read(result)
+	if err != nil {
+		return []byte{}, err
+	}
+	return result, nil
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestEncryptDecrypt(t *testing.T) {
+func TestEncryptDecryptCBC(t *testing.T) {
 	ex := []struct {
 		key   []byte
 		iv    []byte
