@@ -64,11 +64,12 @@ func (c *cbcEncrypter) CryptBlocks(dst, src []byte) {
 		// 1) take previous block (or iv), xor with current
 		enc = XorFixed(c.iv, srcBlocks[i])
 		// 2) Encrypt with block cipher
+		dstBlocks[i] = make([]byte, c.blockSize)
 		c.b.Encrypt(dstBlocks[i], enc)
-		// 3) Updated most recently seen crypt block
+		// 3) Updated iv to be the most recently seen crypt block
 		c.iv = dstBlocks[i]
 	}
-	dst = UnchunkBytes(dstBlocks)
+	copy(dst, UnchunkBytes(dstBlocks))
 }
 
 // CryptBlocks decrypts a number of blocks. The length of

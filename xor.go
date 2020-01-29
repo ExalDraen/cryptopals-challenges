@@ -14,10 +14,14 @@ func RepeatingKeyXOR(data, key []byte) (out []byte) {
 }
 
 // XorFixed takes two byte slices and produces the byte-by-byte
-// result slice
+// result slice. The two slices must be of equal length
 func XorFixed(left []byte, right []byte) []byte {
 	out := make([]byte, len(left))
 
+	// TODO: better error handling
+	if len(right) != len(left) {
+		panic("cannot take xor of two different length buffers!")
+	}
 	// Could reuse an input buffer here
 	for i := range left {
 		out[i] = left[i] ^ right[i]
