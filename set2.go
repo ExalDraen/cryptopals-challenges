@@ -36,6 +36,7 @@ func C10() {
 		log.Fatalf("failed to read file: %v", err)
 	}
 	fmt.Printf("\nOriginal bytes: %v", orig)
-	decrypter.CryptBlocks(orig, orig)
-	fmt.Printf("\nDecrypted bytes, as string: %v", string(orig))
+	decrypted := make([]byte, len(orig))
+	decrypter.CryptBlocks(decrypted, orig)
+	fmt.Printf("\nDecrypted bytes, as string: %v", string(decrypted))
 }
