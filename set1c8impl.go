@@ -26,7 +26,7 @@ func C8() {
 		if err != nil {
 			log.Fatal("Failed to decode hex string, exiting")
 		}
-		if s := scoreECB(txt); s > bestScore {
+		if s := ScoreECB(txt); s > bestScore {
 			bestScore = s
 			bestRes = txt
 			fmt.Printf("New likely ECB with score %v: %x\n", s, txt)
@@ -36,30 +36,4 @@ func C8() {
 		log.Fatal(err)
 	}
 	fmt.Printf("Best score %v for: %x\n", bestScore, bestRes)
-}
-
-// Detect AES-ECB:
-//   ECB will encrypt the same plaintext to the same cyphertext
-//   so 16 byte blocks will repeat / show patterns.
-//   therefore: create histogram of byte blocks
-//   if there's multiple repeats
-
-func scoreECB(data []byte) int {
-	const keySize = 16 // in bytes
-
-	var chunk string
-	var endScore int
-	scores := make(map[string]int)
-
-	for i := 0; i < len(data); i += keySize {
-		chunk = string(data[i : i+keySize])
-		scores[chunk]++
-	}
-
-	for _, v := range scores {
-		if v > 1 {
-			endScore++
-		}
-	}
-	return endScore
 }
