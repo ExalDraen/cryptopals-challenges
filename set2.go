@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"fmt"
@@ -22,6 +23,7 @@ const (
 func Set2() {
 	C9()
 	C10()
+	C11()
 }
 
 // C9 solutions
@@ -56,6 +58,15 @@ func C10() {
 // C11 solution
 func C11() {
 	fmt.Println("---------------------- c11 ------------------------")
+	// input must have at least one repeating block for us to be able to
+	// detect ECB
+	input := bytes.Repeat([]byte("F"), 128)
+
+	for i := 0; i < 8; i++ {
+		crypt, mode := RandomEncryptCBCorECB([]byte(input))
+		guess := DetectCBCorECBMode(crypt)
+		fmt.Printf("%v: correct? %v \t[guess: %v, actual: %v]\n", i, mode == guess, guess, mode)
+	}
 
 }
 
@@ -92,10 +103,11 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 	}
 
 	var plaintext []byte
-	plaintext = append(plaintext, app...)
+	plaintext = append(input, app...)
 	plaintext = append(pre, plaintext...)
 
-	// TODO: pad plaintext to keySize boundary
+	// pad plaintext to keySize boundary
+	plaintext = PadPKCS7(plaintext, keySize)
 
 	// encrypt
 	var encrypter cipher.BlockMode
@@ -105,10 +117,10 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 	}
 	dst := make([]byte, len(plaintext))
 	if mode == CBCMode {
-		encrypter = NewCBCDecrypter(cypher, iv)
+		encrypter = NewCBCEncrypter(cypher, iv)
 		encrypter.CryptBlocks(dst, plaintext)
 	} else {
-		encrypter = NewECBDecrypter(cypher)
+		encrypter = NewECBEncrypter(cypher)
 		encrypter.CryptBlocks(dst, plaintext)
 	}
 	return dst, mode
@@ -119,5 +131,9 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 func DetectCBCorECBMode(data []byte) CryptMode {
 
 	// guess if it's ECB mode by spotting repeating patterns, otherwise guess CBC
-	return ECBMode
+	score := ScoreECB(data)
+	if score > 0 {
+		return ECBMode
+	}
+	return CBCMode
 }
