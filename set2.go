@@ -75,7 +75,7 @@ func C11() {
 
 	for i := 0; i < 8; i++ {
 		crypt, mode := RandomEncryptCBCorECB([]byte(input))
-		guess := DetectCBCorECBMode(crypt)
+		guess := DetectCBCorECBData(crypt)
 		fmt.Printf("%v: correct? %v \t[guess: %v, actual: %v]\n", i, mode == guess, guess, mode)
 	}
 
@@ -84,21 +84,105 @@ func C11() {
 // C12 solution
 func C12() {
 	fmt.Println("---------------------- c12 ------------------------")
+	var result []byte
 
-	// Here's roughly how:
 	blockSize, err := DiscoverBlockSize(RandomEncryptECB)
 	if err != nil {
 		log.Fatalf("couldn't discover block size: %v", err)
 	}
-	fmt.Printf("Found block size: %v", blockSize)
+	fmt.Printf("Found block size: %v\n", blockSize)
 
-	// Feed identical bytes of your-string to the function 1 at a time --- start with 1 byte ("A"), then "AA", then "AAA" and so on. Discover the block size of the cipher. You know it, but do this step anyway.
-	// Detect that the function is using ECB. You already know, but do this step anyways.
-	// Knowing the block size, craft an input block that is exactly 1 byte short (for instance, if the block size is 8 bytes, make "AAAAAAA"). Think about what the oracle function is going to put in that last byte position.
-	// Make a dictionary of every possible last byte by feeding different strings to the oracle; for instance, "AAAAAAAA", "AAAAAAAB", "AAAAAAAC", remembering the first block of each invocation.
-	// Match the output of the one-byte-short input to one of the entries in your dictionary. You've now discovered the first byte of unknown-string.
-	// Repeat for the next byte.
+	mode := DetectCBCorECBFn(RandomEncryptECB)
+	fmt.Printf("Found encryption mode: %v\n", mode)
 
+	n, err := DiscoverNumBlocks(RandomEncryptECB)
+	if err != nil {
+		log.Fatalf("couldn't discover number of blocks: %v", err)
+	}
+	for i := 0; i < n; i++ {
+		result = append(result, decryptBlock(blockSize, i, RandomEncryptECB)...)
+	}
+	fmt.Printf("Decrypted blocks: %v", string(result))
+}
+
+func decryptBlock(blockSize int, blockNum int, crypter EncryptionFn) []byte {
+	// How to decrypt a block by block
+	// ==========  Block 0 ===========
+	// Round 1
+
+	// (1) construct block   A A A A A A A
+	// (2) feed in,          A A A A A A A P     P is the first byte of plaintext we want
+	// (3) encrypt, get back X X X X X X X X
+
+	// (4) generate all      A A A A A A A G(i)  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y
+	// (6) find i where X = Y, => G(i) = P
+
+	// Round 2
+
+	// construct block   A A A A A A
+	// feed in,          A A A A A A P Q     Q => second byte of plaintext
+	// encrypt, get back X X X X X X X X
+
+	// generate all      A A A A A A P G(i)  G(i) is generated 0-255 byte
+	// this gives        Y Y Y Y Y Y Y Y
+	// find i where X = Y, => G(i) = Q
+	// (...)
+	// repeat until entire block decrypted
+
+	// ==========  Block 1 ===========
+	// similar to above:
+	// (1) construct block   A A A A A A A
+	// (2) feed in,          A A A A A A A K K K K K K K P     K is known plaintext from above, P is byte we want
+	// (3) encrypt, get back               X X X X X X X X
+
+	// (4) generate all      A A A A A A A G(i)  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y
+	// (6) find i where X = Y, => G(i) = P
+
+	// (...)
+	// repeat until all blocks decrypted
+	var answer []byte
+	var candidate []byte
+	var cryptCandidate []byte
+	candidates := make(map[string]string)
+
+	// i tracks how many bytes to chop off the block we feed into the encryption fn
+	for i := 1; i <= blockSize; i++ {
+		feed := bytes.Repeat([]byte("A"), blockSize-i)
+		crypt := ChunkBytes(RandomEncryptECB(feed), blockSize)[blockNum] //TODO: fragile, will blow up if wrong blockNum passed
+
+		// generate candidates
+		for i := 0; i < 256; i++ {
+			candidate = append(feed, answer...)
+			candidate = append(candidate, byte(i))
+			cryptCandidate = ChunkBytes(RandomEncryptECB(candidate), blockSize)[blockNum]
+			candidates[string(cryptCandidate)] = string(candidate)
+		}
+
+		// match = AAA + known plaintext + new plaintext byte
+		match, ok := candidates[string(crypt)]
+		if !ok {
+			log.Fatalf("Couldn't find match for %v", crypt)
+		}
+		answer = append(answer, byte(match[len(match)-1]))
+	}
+	return answer
+}
+
+// DiscoverNumBlocks finds the number of encrypted blocks
+// returned if the given encryption function is fed with
+// just shy of one block
+func DiscoverNumBlocks(crypter EncryptionFn) (int, error) {
+	blockSize, err := DiscoverBlockSize(RandomEncryptECB)
+	if err != nil {
+		return 0, fmt.Errorf("failed to discover block size: %v", err)
+	}
+
+	// encrypt just under one block
+	feed := bytes.Repeat([]byte("A"), blockSize-1)
+	crypt := RandomEncryptECB(feed)
+	return len(ChunkBytes(crypt, blockSize)), nil
 }
 
 // DiscoverBlockSize finds the size of the cypher blocks
@@ -208,9 +292,9 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 	return dst, mode
 }
 
-// DetectCBCorECBMode detects whether a given byte slice was
+// DetectCBCorECBData detects whether a given byte slice was
 // encoded in CBC or ECB mode
-func DetectCBCorECBMode(data []byte) CryptMode {
+func DetectCBCorECBData(data []byte) CryptMode {
 
 	// guess if it's ECB mode by spotting repeating patterns, otherwise guess CBC
 	score := ScoreECB(data)
@@ -218,4 +302,16 @@ func DetectCBCorECBMode(data []byte) CryptMode {
 		return ECBMode
 	}
 	return CBCMode
+}
+
+// DetectCBCorECBFn detects whether or not the given encryption function
+// encrypts in ECB or CBC mode.
+// It does this by feeding a well-known, long input into the function
+// and looking for repeats
+func DetectCBCorECBFn(cryptFn EncryptionFn) CryptMode {
+	// input must have at least one repeating block for us to be able to
+	// detect ECB
+	input := bytes.Repeat([]byte("F"), 1024)
+
+	return DetectCBCorECBData(input)
 }
