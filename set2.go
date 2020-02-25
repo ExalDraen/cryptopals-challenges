@@ -99,75 +99,123 @@ func C12() {
 	if err != nil {
 		log.Fatalf("couldn't discover number of blocks: %v", err)
 	}
+	knownBlock := bytes.Repeat([]byte("A"), blockSize)
 	for i := 0; i < n; i++ {
-		result = append(result, decryptBlock(blockSize, i, RandomEncryptECB)...)
+		knownBlock = decryptBlockNew(knownBlock, i, RandomEncryptECB)
+		result = append(result, knownBlock...)
 	}
 	fmt.Printf("Decrypted blocks: %v", string(result))
 }
 
-func decryptBlock(blockSize int, blockNum int, crypter EncryptionFn) []byte {
+func decryptBlockNew(previousBlock []byte, blockNum int, crypter EncryptionFn) []byte {
 	// How to decrypt a block by block
-	// ==========  Block 0 ===========
+	// Illustration with block length 8, | is the block boundary
+	// ==========  Block 1 ===========
 	// Round 1
 
-	// (1) construct block   A A A A A A A
-	// (2) feed in,          A A A A A A A P     P is the first byte of plaintext we want
-	// (3) encrypt, get back X X X X X X X X
+	// (1) construct block   A A A A A A A   |
+	// (2) feed in,          A A A A A A A P |     P is the first byte of plaintext we want
+	// (3) encrypt, get back X X X X X X X X |
 
-	// (4) generate all      A A A A A A A G(i)  G(i) is generated 0-255 byte
-	// (5) this gives        Y Y Y Y Y Y Y Y
+	// (4) generate all      A A A A A A A G(i) |  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y    |
 	// (6) find i where X = Y, => G(i) = P
 
 	// Round 2
 
-	// construct block   A A A A A A
-	// feed in,          A A A A A A P Q     Q => second byte of plaintext
-	// encrypt, get back X X X X X X X X
+	// construct block   A A A A A A     |
+	// feed in,          A A A A A A P Q |    Q => second byte of plaintext
+	// encrypt, get back X X X X X X X X |
 
-	// generate all      A A A A A A P G(i)  G(i) is generated 0-255 byte
-	// this gives        Y Y Y Y Y Y Y Y
+	// generate all      A A A A A A P G(i) |  G(i) is generated 0-255 byte
+	// this gives        Y Y Y Y Y Y Y Y    |
 	// find i where X = Y, => G(i) = Q
 	// (...)
 	// repeat until entire block decrypted
 
-	// ==========  Block 1 ===========
+	// ==========  Block 2 ===========
 	// similar to above:
-	// (1) construct block   A A A A A A A
-	// (2) feed in,          A A A A A A A K K K K K K K P     K is known plaintext from above, P is byte we want
-	// (3) encrypt, get back               X X X X X X X X
+	// (1) construct block   A A A A A A A   |
+	// (2) plaintext will be A A A A A A A K | K K K K K K K P     K is known plaintext from above, P is byte we want
+	// (4) encrypt, get back                 | X X X X X X X X
 
-	// (4) generate all      A A A A A A A G(i)  G(i) is generated 0-255 byte
-	// (5) this gives        Y Y Y Y Y Y Y Y
+	// (4) generate all      K K K K K K K G(i) |  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y    |
+	// (6) find i where X = Y, => G(i) = P
+	//
+	// Round 2
+	// (1) construct block   A A A A A A     |
+	// (2) plaintext will be A A A A A A K K | K K K K K K P Q     Q => second byte of plaintext
+	// (4) encrypt, get back                 | X X X X X X X X
+
+	// (4) generate all      K K K K K K P G(i) |  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y    |
 	// (6) find i where X = Y, => G(i) = P
 
-	// (...)
-	// repeat until all blocks decrypted
-	var answer []byte
-	var candidate []byte
-	var cryptCandidate []byte
-	candidates := make(map[string]string)
+	// repeat until final block ....
+	//
+	// ==========  Block N ===========
+	// E.g. if last block only has 2 bytes
+	// Round 1
+	// (1) construct block   A A A A A A A   |
+	// (2) plaintext will be A A A A A A A K | ... | K K K K K K K P     K is known plaintext from above, P is byte we want
+	// (4) encrypt, get back                 | ... | X X X X X X X X
 
-	// i tracks how many bytes to chop off the block we feed into the encryption fn
+	// (4) generate all      K K K K K K K G(i) |  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y    |
+	// (6) find i where X = Y, => G(i) = P
+
+	// Round 3
+	// (1) construct block   A A A A A       |
+	// (2) plaintext will be A A A A A K K K | ... | K K K K K P Q N(7)      Q => second byte of plaintext, N(5) => PKCS7 padding for plaintext length 7
+	// (4) encrypt, get back                 | ... | X X X X X X X X
+
+	// (4) generate all      K K K K K P Q G(i) |  G(i) is generated 0-255 byte
+	// (5) this gives        Y Y Y Y Y Y Y Y    |
+	// (6) find i where X = Y -> will fail
+	// (7) now check if we've just got padding:
+	// (8) generate          K K K K K P Q N(7) |
+	// (9) this gives        Z Z Z Z Z Z Z Z    |
+	// (10) X = Z => we're done
+
+	var answer []byte
+	blockSize := len(previousBlock)
+
+	// i is the round number in the scheme above, i.e.
+	// how many bytes to chop off the block we feed into the encryption fn and
+	// how many bytes to chop off the front of the known block
 	for i := 1; i <= blockSize; i++ {
 		feed := bytes.Repeat([]byte("A"), blockSize-i)
-		crypt := ChunkBytes(RandomEncryptECB(feed), blockSize)[blockNum] //TODO: fragile, will blow up if wrong blockNum passed
+		crypt := ChunkBytes(crypter(feed), blockSize)[blockNum] //TODO: fragile, will blow up if wrong blockNum passed
 
 		// generate candidates
-		for i := 0; i < 256; i++ {
-			candidate = append(feed, answer...)
-			candidate = append(candidate, byte(i))
-			cryptCandidate = ChunkBytes(RandomEncryptECB(candidate), blockSize)[blockNum]
-			candidates[string(cryptCandidate)] = string(candidate)
-		}
+		// candidate = Known previous block fragment we fed in + partially decoded block+ new plaintext byte
+		knownPrefix := append(previousBlock[i:], answer...)
+		candidates := GenerateLookup(blockNum, blockSize, knownPrefix, crypter)
 
-		// match = AAA + known plaintext + new plaintext byte
 		match, ok := candidates[string(crypt)]
 		if !ok {
 			log.Fatalf("Couldn't find match for %v", crypt)
 		}
-		answer = append(answer, byte(match[len(match)-1]))
+		answer = append(answer, match)
 	}
 	return answer
+}
+
+// GenerateLookup generates a lookup table of the set of
+// encryptions of the known prefix + byte => byte, where byte
+// is a byte in 0-128
+func GenerateLookup(blockNum int, blockSize int, known []byte, crypter EncryptionFn) map[string]byte {
+	// TODO: need to use nth block to generate prefix to make sure candidates get same padding as real encrypted text
+	candidates := make(map[string]byte)
+	var candidate []byte
+	var cryptCandidate []byte
+	for j := 0; j < 128; j++ {
+		candidate = append(known, byte(j))
+		cryptCandidate = ChunkBytes(crypter(candidate), blockSize)[0]
+		candidates[string(cryptCandidate)] = byte(j)
+	}
+	return candidates
 }
 
 // DiscoverNumBlocks finds the number of encrypted blocks
