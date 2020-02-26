@@ -186,7 +186,7 @@ func decryptBlockNew(previousBlock []byte, blockNum int, blockSize int, crypter 
 // GenerateLookup generates a lookup table of the set of
 // encryptions of the known prefix + byte => byte, where byte
 // is a byte in 0-128
-func GenerateLookup(blockNum int, blockSize int, known []byte, crypter EncryptionFn) map[string]byte {
+func GenerateLookup(blockSize int, known []byte, crypter EncryptionFn) map[string]byte {
 	candidates := make(map[string]byte)
 	var candidate []byte
 	var cryptCandidate []byte
