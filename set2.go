@@ -33,6 +33,7 @@ func Set2() {
 	C10()
 	C11()
 	C12()
+	C13()
 }
 
 var c12Key []byte
@@ -104,7 +105,7 @@ func C12() {
 		knownBlock = decryptBlockNew(knownBlock, i, blockSize, RandomEncryptECB)
 		result = append(result, knownBlock...)
 	}
-	fmt.Printf("Decrypted blocks: %v", string(result))
+	fmt.Printf("Decrypted blocks: %v\n", string(result))
 }
 
 func decryptBlockNew(previousBlock []byte, blockNum int, blockSize int, crypter EncryptionFn) []byte {
@@ -168,7 +169,7 @@ func decryptBlockNew(previousBlock []byte, blockNum int, blockSize int, crypter 
 		// generate candidates
 		// candidate = Known previous block fragment we fed in + partially decoded block+ new plaintext byte
 		knownPrefix := append(previousBlock[i:], answer...)
-		candidates := GenerateLookup(blockNum, blockSize, knownPrefix, crypter)
+		candidates := GenerateLookup(blockSize, knownPrefix, crypter)
 
 		match, ok := candidates[string(crypt)]
 		if !ok {
