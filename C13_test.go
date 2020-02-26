@@ -8,10 +8,10 @@ import (
 func TestKVParse(t *testing.T) {
 	ex := []struct {
 		inp string
-		exp map[string]string
+		exp User
 	}{
-		{"foo=bar", map[string]string{"foo": "bar"}},
-		{"email=foo@bar.com&uid=10&role=user", map[string]string{"email": "foo@bar.com", "uid": "10", "role": "user"}},
+		{"email=foo@bar.com&uid=10&role=user", User{email: "foo@bar.com", uid: 10, role: "user"}},
+		{"email=quu@fux.floo&uid=0&role=admin", User{email: "quu@fux.floo", uid: 0, role: "admin"}},
 	}
 
 	for _, e := range ex {
@@ -26,14 +26,6 @@ func TestKVParse(t *testing.T) {
 	}
 }
 
-func compare(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if b[k] != v {
-			return false
-		}
-	}
-	return true
+func compare(a, b User) bool {
+	return a.email == b.email && a.uid == b.uid && a.role == b.role
 }
