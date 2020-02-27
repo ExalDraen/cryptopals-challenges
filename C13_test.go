@@ -26,6 +26,29 @@ func TestKVParse(t *testing.T) {
 	}
 }
 
+func TestEncryptDecryptCycle(t *testing.T) {
+	ex := []struct {
+		u User
+		k []byte
+	}{
+		{User{email: "foo@bar.com", uid: 10, role: "user"}, []byte("Please test me!!")},
+		{User{email: "quu@fux.floo", uid: 0, role: "admin"}, []byte("Please test me!!")},
+		{User{email: "quu@fux.floo", uid: 0, role: "admin"}, []byte("YELLOW SUBMARINE")},
+	}
+
+	for _, e := range ex {
+		crypt := e.u.Encrypt(e.k)
+		decrypt, err := DecryptUser(crypt, e.k)
+		if err != nil {
+			log.Fatalf("failed to decrypt kv %v: %v", crypt, err)
+		}
+
+		if !compare(e.u, decrypt) {
+			t.Errorf("Encrypt-Decrypt with key %v failed: \nExp: %v \nGot: %v", e.k, e.u, decrypt)
+		}
+	}
+}
+
 func compare(a, b User) bool {
 	return a.email == b.email && a.uid == b.uid && a.role == b.role
 }
