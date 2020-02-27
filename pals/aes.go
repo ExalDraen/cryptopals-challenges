@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-// AesDecryptECB decrypts a given set of data that was encrypted
-// with AES in ECB.
-// The original data is not modified.
+// AesDecryptECB decrypts the given data under the given key
+// using AES in ECB mode. A copy is returned, the original
+// slice is unmodified.
 func AesDecryptECB(data, key []byte) ([]byte, error) {
 	keySize := len(key)
 	if len(data)%keySize != 0 {
@@ -19,30 +19,28 @@ func AesDecryptECB(data, key []byte) ([]byte, error) {
 	}
 
 	// Decrypt the data block by block using the key
-	plain := make([]byte, len(data))
-	for i := 0; i < len(data); i += keySize {
-		cypher.Decrypt(plain[i:i+keySize], data[i:i+keySize])
-	}
-	return plain, nil
+	dst := make([]byte, len(data))
+	encrypter := NewECBDecrypter(cypher)
+	encrypter.CryptBlocks(dst, data)
+	return dst, nil
 }
 
-// AesEncryptECB encrypts a given set of data
-// with a given key. No padding is done.
-// The original data is not modified.
+// AesEncryptECB encrypts the given data under the given key
+// using AES in ECB mode. A copy is returned, the original
+// slice is unmodified.
 func AesEncryptECB(data, key []byte) ([]byte, error) {
 	keySize := len(key)
 	if len(data)%keySize != 0 {
 		return nil, fmt.Errorf("failed to encrypt data: key (len %v) does not evenly divide data (len %v)", keySize, len(data))
 	}
-	cypher, err := aes.NewCipher([]byte(key))
+	cypher, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate cypher with key %v: %v", key, err)
 	}
 
 	// Encrypt the data block by block using the key
-	crypt := make([]byte, len(data))
-	for i := 0; i < len(data); i += keySize {
-		cypher.Encrypt(crypt[i:i+keySize], data[i:i+keySize])
-	}
-	return crypt, nil
+	dst := make([]byte, len(data))
+	encrypter := NewECBEncrypter(cypher)
+	encrypter.CryptBlocks(dst, data)
+	return dst, nil
 }
