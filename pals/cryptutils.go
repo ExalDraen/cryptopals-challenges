@@ -1,4 +1,4 @@
-package main
+package pals
 
 // ScoreECB will score the likelihood of a given byte slice containing
 // cypher text of a given block size, encrypted in ECB.

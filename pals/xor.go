@@ -1,4 +1,4 @@
-package main
+package pals
 
 // RepeatingKeyXOR returns a new slice containing
 // the bytes in the data sliced repeatedly XORd against

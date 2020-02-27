@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+
+	"github.com/ExalDraen/cryptopals-challenges/pals"
 )
 
 // CryptMode represents the block cypher mode
@@ -33,7 +35,7 @@ func Set2() {
 	C10()
 	C11()
 	C12()
-	C13()
+	//C13()
 }
 
 var c12Key []byte
@@ -42,7 +44,7 @@ var c12Key []byte
 func C9() {
 	fmt.Println("---------------------- c9 ------------------------")
 	const trial = "YELLOW SUBMARINE"
-	fmt.Printf("Trial %v padded to 20: %q\n", trial, string(PadPKCS7([]byte(trial), 20)))
+	fmt.Printf("Trial %v padded to 20: %q\n", trial, string(pals.PadPKCS7([]byte(trial), 20)))
 }
 
 // C10 solution
@@ -55,9 +57,9 @@ func C10() {
 	if err != nil {
 		log.Fatalf("failed to instantiate cypher with key %v: %v", key, err)
 	}
-	decrypter := NewCBCDecrypter(cypher, []byte(iv))
+	decrypter := pals.NewCBCDecrypter(cypher, []byte(iv))
 
-	orig, err := ReadAllBase64("c10data.txt")
+	orig, err := pals.ReadAllBase64("c10data.txt")
 	if err != nil {
 		log.Fatalf("failed to read file: %v", err)
 	}
@@ -163,7 +165,7 @@ func decryptBlockNew(previousBlock []byte, blockNum int, blockSize int, crypter 
 	// how many bytes to chop off the front of the known block
 	for i := 1; i <= blockSize; i++ {
 		feed := bytes.Repeat([]byte("A"), blockSize-i)
-		cryptedChunks := ChunkBytes(crypter(feed), blockSize)
+		cryptedChunks := pals.ChunkBytes(crypter(feed), blockSize)
 		crypt := cryptedChunks[blockNum] // fragile, will blow up if wrong blockNum passed
 
 		// generate candidates
@@ -193,7 +195,7 @@ func GenerateLookup(blockSize int, known []byte, crypter EncryptionFn) map[strin
 	var cryptCandidate []byte
 	for j := 0; j < 128; j++ {
 		candidate = append(known, byte(j))
-		cryptCandidate = ChunkBytes(crypter(candidate), blockSize)[0]
+		cryptCandidate = pals.ChunkBytes(crypter(candidate), blockSize)[0]
 		candidates[string(cryptCandidate)] = byte(j)
 	}
 	return candidates
@@ -210,7 +212,7 @@ func DiscoverNumBlocks(crypter EncryptionFn) (int, error) {
 	// encrypt an empty slice
 	feed := []byte{}
 	crypt := RandomEncryptECB(feed)
-	return len(ChunkBytes(crypt, blockSize)), nil
+	return len(pals.ChunkBytes(crypt, blockSize)), nil
 }
 
 // DiscoverBlockSize finds the size of the cypher blocks
@@ -239,7 +241,7 @@ func RandomEncryptECB(input []byte) []byte {
 
 	if c12Key == nil {
 		var err error
-		c12Key, err = GenerateRandomBytes(keySize)
+		c12Key, err = pals.GenerateRandomBytes(keySize)
 		if err != nil {
 			log.Fatalf("unable to generate random bytes: %v", err)
 		}
@@ -252,14 +254,14 @@ func RandomEncryptECB(input []byte) []byte {
 	}
 	var plaintext []byte
 	plaintext = append(input, suffixBytes...)
-	plaintext = PadPKCS7(plaintext, keySize)
+	plaintext = pals.PadPKCS7(plaintext, keySize)
 
 	cypher, err := aes.NewCipher(c12Key)
 	if err != nil {
 		log.Fatalf("Failed to initialize cypher with key %v", c12Key)
 	}
 	dst := make([]byte, len(plaintext))
-	encrypter := NewECBEncrypter(cypher)
+	encrypter := pals.NewECBEncrypter(cypher)
 	encrypter.CryptBlocks(dst, plaintext)
 
 	return dst
@@ -276,22 +278,22 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 		mode = CBCMode
 	}
 	// generate random key / iv
-	key, err := GenerateRandomBytes(keySize)
+	key, err := pals.GenerateRandomBytes(keySize)
 	if err != nil {
 		log.Fatalf("couldn't generate key length %v", keySize)
 	}
-	iv, err := GenerateRandomBytes(keySize) // not used for ECB mode but who cares
+	iv, err := pals.GenerateRandomBytes(keySize) // not used for ECB mode but who cares
 	if err != nil {
 		log.Fatalf("couldn't generate IV length %v", keySize)
 	}
 
 	// append & prepend 5-10 bytes
 	// TODO: pre/postpend should be one random byte, repeated
-	pre, err := GenerateRandomBytes(5 + rand.Intn(5))
+	pre, err := pals.GenerateRandomBytes(5 + rand.Intn(5))
 	if err != nil {
 		log.Fatal("couldn't generate prepend bytes")
 	}
-	app, err := GenerateRandomBytes(5 + rand.Intn(5))
+	app, err := pals.GenerateRandomBytes(5 + rand.Intn(5))
 	if err != nil {
 		log.Fatal("couldn't generate prepend bytes")
 	}
@@ -301,7 +303,7 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 	plaintext = append(pre, plaintext...)
 
 	// pad plaintext to keySize boundary
-	plaintext = PadPKCS7(plaintext, keySize)
+	plaintext = pals.PadPKCS7(plaintext, keySize)
 
 	// encrypt
 	var encrypter cipher.BlockMode
@@ -311,10 +313,10 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 	}
 	dst := make([]byte, len(plaintext))
 	if mode == CBCMode {
-		encrypter = NewCBCEncrypter(cypher, iv)
+		encrypter = pals.NewCBCEncrypter(cypher, iv)
 		encrypter.CryptBlocks(dst, plaintext)
 	} else {
-		encrypter = NewECBEncrypter(cypher)
+		encrypter = pals.NewECBEncrypter(cypher)
 		encrypter.CryptBlocks(dst, plaintext)
 	}
 	return dst, mode
@@ -325,7 +327,7 @@ func RandomEncryptCBCorECB(input []byte) ([]byte, CryptMode) {
 func DetectCBCorECBData(data []byte) CryptMode {
 
 	// guess if it's ECB mode by spotting repeating patterns, otherwise guess CBC
-	score := ScoreECB(data)
+	score := pals.ScoreECB(data)
 	if score > 0 {
 		return ECBMode
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/ExalDraen/cryptopals-challenges/pals"
 )
 
 // C8 implements the solutions to set 1 challenge 8
@@ -26,7 +28,7 @@ func C8() {
 		if err != nil {
 			log.Fatal("Failed to decode hex string, exiting")
 		}
-		if s := ScoreECB(txt); s > bestScore {
+		if s := pals.ScoreECB(txt); s > bestScore {
 			bestScore = s
 			bestRes = txt
 			fmt.Printf("New likely ECB with score %v: %x\n", s, txt)

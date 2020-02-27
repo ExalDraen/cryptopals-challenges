@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"sort"
+
+	"github.com/ExalDraen/cryptopals-challenges/pals"
 )
 
 // Candidate is a key length candidate
@@ -38,7 +40,7 @@ func KeysFromB(data []byte, from int, to int) []Candidate {
 		for j := 0; j < iters; j++ {
 			a := data[j*size : (j+1)*size : (j+1)*size]
 			b := data[(j+1)*size : (j+2)*size : (j+2)*size]
-			dist += float64(HammingDistance(a, b))
+			dist += float64(pals.HammingDistance(a, b))
 		}
 		normalized = dist / float64(iters) / float64(size)
 		candidates = append(candidates, Candidate{length: size, score: normalized})
@@ -60,11 +62,11 @@ func solveWithSize(size int, data []byte) []byte {
 	fmt.Printf("Solving data of len %v with a key length %v (%v blocks)\n", len(data), size, len(data)/size)
 
 	// Break bytes into keysize blocks
-	blocks := ChunkBytes(data, size)
+	blocks := pals.ChunkBytes(data, size)
 	//fmt.Printf("Blocks are: %v\n", blocks)
 
 	// transpose them
-	tBlocks := Transpose(blocks)
+	tBlocks := pals.Transpose(blocks)
 	//fmt.Printf("Transposed blocks are: %v\n", tBlocks)
 
 	// solve each block
@@ -93,7 +95,7 @@ func solveWithSize(size int, data []byte) []byte {
 	fmt.Printf("Full key is: %v\n", fullKey)
 
 	// Finally, decrypt
-	result := RepeatingKeyXOR(data, []byte(fullKey))
+	result := pals.RepeatingKeyXOR(data, []byte(fullKey))
 	return result
 }
 
@@ -106,9 +108,9 @@ func C6() {
 
 	fmt.Println("---------------------- c6 ------------------------")
 	// Verify hamming distance implementation is correct
-	fmt.Printf("Hamming distance of '%v' to '%v': %v\n", hTest1, hTest2, HammingDistance([]byte(hTest1), []byte(hTest2)))
+	fmt.Printf("Hamming distance of '%v' to '%v': %v\n", hTest1, hTest2, pals.HammingDistance([]byte(hTest1), []byte(hTest2)))
 
-	original, err := ReadAllBase64(dataPath)
+	original, err := pals.ReadAllBase64(dataPath)
 	if err != nil {
 		log.Fatalf("Failed to read C6 input %v", err)
 	}

@@ -9,6 +9,8 @@ import (
 	"math"
 	"os"
 	"strings"
+
+	"github.com/ExalDraen/cryptopals-challenges/pals"
 )
 
 const (
@@ -68,7 +70,7 @@ func Set1() {
 	fmt.Println("----------- c2 -------------")
 	c2Left, err := hex.DecodeString(c2LeftStr)
 	c2Right, err := hex.DecodeString(c2RightStr)
-	c2Res := XorFixed(c2Left, c2Right)
+	c2Res := pals.XorFixed(c2Left, c2Right)
 	fmt.Println(hex.EncodeToString(c2Res))
 
 	// Challenge 3
@@ -110,7 +112,7 @@ func Set1() {
 	// Challenge 5
 	fmt.Println("----------- c5 -------------")
 	c5bytes := []byte(c5Str)
-	c5Res := RepeatingKeyXOR(c5bytes, []byte(c5Key))
+	c5Res := pals.RepeatingKeyXOR(c5bytes, []byte(c5Key))
 
 	fmt.Println(hex.EncodeToString(c5Res))
 
@@ -161,7 +163,7 @@ func DecryptSingleXorB(cypherBytes []byte) (string, int, error) {
 	// return highest scoring
 	for i := 0; i < 256; i++ {
 		b := []byte{byte(i)}
-		bytes := RepeatingKeyXOR(cypherBytes, b)
+		bytes := pals.RepeatingKeyXOR(cypherBytes, b)
 		trial := string(bytes)
 		if s := score(trial); s > maxScore {
 			//fmt.Printf("Found new high score %v with key %v, giving result '%q'\n", s, i, trial)

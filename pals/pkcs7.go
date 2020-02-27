@@ -1,4 +1,5 @@
-package main
+package pals
+
 
 // PadPKCS7 pads a given byte slice to be a multiple
 // of blockSize using the PKCS7 standard (RFC2315)

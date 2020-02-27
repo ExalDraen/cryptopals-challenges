@@ -1,4 +1,4 @@
-package main
+package pals
 
 import (
 	"crypto/aes"
