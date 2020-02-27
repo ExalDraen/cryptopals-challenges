@@ -32,3 +32,25 @@ func TestPKCS7Pad(t *testing.T) {
 		}
 	}
 }
+
+func TestPKCS7UnPad(t *testing.T) {
+	ex := []struct {
+		input    []byte
+		expected []byte
+	}{
+		{[]byte("\x08\x08\x08\x08\x08\x08\x08\x08"), []byte("")},
+		{[]byte("a\x07\x07\x07\x07\x07\x07\x07"), []byte("a")},
+		{[]byte("ab\x06\x06\x06\x06\x06\x06"), []byte("ab")},
+		{[]byte("abcdefg\x01"), []byte("abcdefg")},
+		{[]byte("abcdefgh1\x07\x07\x07\x07\x07\x07\x07"), []byte("abcdefgh1")},
+		{[]byte("a\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f"), []byte("a")},
+		{[]byte("\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10"), []byte("")},
+		{[]byte("YELLOW SUBMARINE\x04\x04\x04\x04"), []byte("YELLOW SUBMARINE")},
+	}
+	for _, e := range ex {
+		result := UnpadPKCS7(e.input)
+		if !bytes.Equal(result, e.expected) {
+			t.Errorf("Unpad failed: Expected: %v Got: %v", e.expected, result)
+		}
+	}
+}
