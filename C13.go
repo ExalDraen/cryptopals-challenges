@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -36,7 +38,13 @@ func (u *User) Encrypt(key []byte) []byte {
 // C13 solution
 func C13() {
 	fmt.Println("---------------------- c13 ------------------------")
-
+	adminProfile := genAdminProfile()
+	fmt.Printf("Generated admin profile cyphertext: %v\n", adminProfile)
+	adminUser, err := DecryptUser(adminProfile, pals.RandomKey)
+	if err != nil {
+		log.Fatalf("failed to decrypt generated admin profile: %v", err)
+	}
+	fmt.Printf("Admin user decrypts to %+v: \n", adminUser)
 }
 
 // ProfileFor generates an encoded representation of a user profile
@@ -48,6 +56,17 @@ func ProfileFor(email string) string {
 		role:  "user",
 	}
 	return u.KvEncode()
+}
+
+// EncryptedProfileFor generates an encrypted representation of a user profile
+// for the given email
+func EncryptedProfileFor(email string) []byte {
+	u := User{
+		email: email,
+		uid:   10,
+		role:  "user",
+	}
+	return u.Encrypt(pals.RandomKey)
 }
 
 // DecryptUser decrypts the given encrypted user profile
@@ -95,4 +114,62 @@ func KvParse(input string) (User, error) {
 // strips illegal metacharacters
 func sanitize(s string) string {
 	return strings.Replace(strings.Replace(s, "&", "", -1), "=", "", -1)
+}
+
+// discoverProfileBlockSize finds the size of the cypher blocks
+// used to encrypt user profiles
+// Do this by repeatedly increasing the input until the return size changes
+func discoverProfileBlockSize() (int, error) {
+	var initLen, nextLen int // lengths of crypt text
+	const maxSize = 2048
+	var inp []byte
+
+	initLen = len(EncryptedProfileFor(""))
+	for i := 1; i <= maxSize; i++ {
+		inp = bytes.Repeat([]byte("A"), i)
+		nextLen = len(EncryptedProfileFor(string(inp)))
+		if nextLen > initLen {
+			return nextLen - initLen, nil
+		}
+	}
+	return 0, fmt.Errorf("unable to find block size, went to max: %v", maxSize)
+}
+
+// genAdminProfile creates a valid cyphertext whose payload will
+// decrypt into a user with admin role.
+func genAdminProfile() []byte {
+	// generate a role=admin profile by repeated calls to ProfileFor
+	// Goal is to stitch the following blocks
+	// (1) |email=...&uid=10&role=| where ... is chosen by us
+	// (2) |adminPPPPPPPPP|  where P is padding
+	// Combining these: |email=...&uid=10&role=|adminPPPPPPPPPP|
+	// which would decrypt to
+	// email=...&uid=10&role=admin
+
+	// To get block (1), choose ... such that the last block contains "user", the bit we don't want
+	// to do that, we need email=...&uid=10&role=) to fully fill one or more blocks.
+	//
+	// Then grab the first encrypted block
+	// To get block (2), we want to construct a situation where
+	/// |email=..............|adminPPPPPPPPPP|&uid=10&role=user|
+
+	// Get (1)
+	blockSize, err := discoverProfileBlockSize()
+	if err != nil {
+		log.Fatalf("couldn't discover block size: %v", err)
+	}
+	fmt.Printf("Found profile block size: %v\n", blockSize)
+	// Generate appropriately sized email to "user" in the final block:
+	// We don't bother generating a working email address here :)
+	nBlocks := len("email=&uid=10&role=")/blockSize + 1
+	email := strings.Repeat("A", nBlocks*blockSize-len("email=&uid=10&role="))
+	crypt := EncryptedProfileFor(email)
+	cryptTrimmed := crypt[:len(crypt)-blockSize]
+
+	// Get (2)
+	email = strings.Repeat("A", blockSize-len("email="))
+	email = email + string(pals.PadPKCS7([]byte("admin"), blockSize))
+	secondBlock := EncryptedProfileFor(email)[blockSize : blockSize*2]
+
+	return append(cryptTrimmed, secondBlock...)
 }

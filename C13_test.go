@@ -26,6 +26,24 @@ func TestKVParse(t *testing.T) {
 	}
 }
 
+func TestKVEncode(t *testing.T) {
+	ex := []struct {
+		inp User
+		exp string
+	}{
+		{User{email: "foo@bar.com", uid: 10, role: "user"}, "email=foo@bar.com&uid=10&role=user"},
+		{User{email: "foo@bar.com&role=admin", uid: 10, role: "user"}, "email=foo@bar.comroleadmin&uid=10&role=user"},
+	}
+
+	for _, e := range ex {
+		enc := e.inp.KvEncode()
+
+		if e.exp != enc {
+			t.Errorf("KV Encode of %v failed: \nExp: %v \nGot: %v", e.inp, e.exp, enc)
+		}
+	}
+}
+
 func TestEncryptDecryptCycle(t *testing.T) {
 	ex := []struct {
 		u User
